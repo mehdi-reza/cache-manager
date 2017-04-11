@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,9 +29,15 @@ public class CacheManager {
 	}
 
 	private void startCacheManager() {
+		
+		logger.info("Started at {}",new Date());
 		readConfig();
 		logConfig();
-		
+
+		// activate all schedulers()
+		for(SchedulerConfig s : schedulers) {
+			s.activate(config);
+		}
 	}
 
 	private void logConfig() {		
