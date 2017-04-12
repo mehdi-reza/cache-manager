@@ -60,11 +60,15 @@ public class SchedulerConfig {
 			for(URI u : scheduler.getUris()) {
 				if(scheduler.state==SchedulerConfig.State.SHUTDOWN)
 					break;
-				fetchAndWrite(u,++i);
+				try {
+					fetchAndWrite(u,++i);
+				} catch(Exception e) {
+					; // catching exception to start fetching next URL
+				}
 			}
 		}
 
-		private void fetchAndWrite(URI uri, int index) {
+		private void fetchAndWrite(URI uri, int index) throws Exception {
 			logger.info("FETCH START: URI {} in scheduler {}", uri, scheduler.getName());
 			HttpGet httpGet = new HttpGet(uri);
 			CloseableHttpResponse closeableResponse = null;			
@@ -92,6 +96,7 @@ public class SchedulerConfig {
 			} catch (Exception e) {
 				if(!(e instanceof ClosedByInterruptException))
 				logger.error("An exception occured while fetching content", e);
+				throw e;
 			} finally {
 			    try {
 			    	if(closeableResponse!=null)
@@ -158,12 +163,8 @@ public class SchedulerConfig {
 		this.state=State.ACTIVE;
 		
 		executor=Executors.newScheduledThreadPool(1);
-		ScheduledFuture<?> future=executor.scheduleAtFixedRate(new HTTPResource(this), 0, getInterval(), TimeUnit.MINUTES);
-		// the following will keep it running indefinitely
-		try {
-			future.get();
-		} catch (Throwable e) {
-		}
+		executor.scheduleAtFixedRate(new HTTPResource(this), 0, getInterval(), TimeUnit.MINUTES);		
+		logger.info("Scheduler: {} is activated", getName());
 	}
 	
 	private void checkIfAlreadyActive() {

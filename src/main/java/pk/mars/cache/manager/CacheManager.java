@@ -36,8 +36,8 @@ public class CacheManager {
 		logConfig();
 
 		// activate all schedulers()
-		for(SchedulerConfig s : schedulers) {
-			s.activate(config);
+		for(SchedulerConfig scheduler : schedulers) {
+			scheduler.activate(config);
 		}
 		
 		Scanner scanner=new Scanner(System.in);
@@ -48,7 +48,7 @@ public class CacheManager {
 			if(i==0) alive=false;
 		}
 		// initiate shutdown of all schedulers
-		for(SchedulerConfig scheduler: schedulers) {
+		for(SchedulerConfig scheduler : schedulers) {
 			scheduler.shutdown();
 		}
 		scanner.close();
