@@ -84,7 +84,7 @@ public class CacheManager {
 		Pattern idNamePattern = Pattern
 				.compile("scheduler\\.([0-9])\\.name\\=(.*)");
 		Pattern urlPattern = Pattern
-				.compile("scheduler\\.([0-9])\\.(.*)\\=(.*)");		
+				.compile("scheduler\\.([0-9])\\.(url|interval)\\=(.*)");		
 		try {
 			reader = new BufferedReader(new FileReader(CacheManager.class
 					.getResource("/scheduler.properties").getFile()));
