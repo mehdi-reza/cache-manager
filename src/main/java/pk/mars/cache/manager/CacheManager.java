@@ -9,6 +9,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +39,19 @@ public class CacheManager {
 		for(SchedulerConfig s : schedulers) {
 			s.activate(config);
 		}
+		
+		Scanner scanner=new Scanner(System.in);
+		boolean alive=true;
+		while(alive) {
+			int i=scanner.nextInt();
+			
+			if(i==0) alive=false;
+		}
+		// initiate shutdown of all schedulers
+		for(SchedulerConfig scheduler: schedulers) {
+			scheduler.shutdown();
+		}
+		scanner.close();
 	}
 
 	private void logConfig() {		

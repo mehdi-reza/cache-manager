@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Paths;
@@ -30,10 +31,18 @@ public class SchedulerConfig {
 	private String name;
 	private Map<String,String> config;
 	
-	private boolean activated=false;
+	private State state=State.INIT;
 	private ScheduledExecutorService executor;
-	
+	private CloseableHttpClient httpclient = HttpClients.createDefault();
+	ByteBuffer buffer=ByteBuffer.allocateDirect(256*1024); // 256KB
 	private Logger logger=LoggerFactory.getLogger(SchedulerConfig.class);
+	
+	
+	protected enum State {
+		INIT,
+		ACTIVE,
+		SHUTDOWN
+	}
 	
 	public class HTTPResource extends Thread {
 		
@@ -47,39 +56,47 @@ public class SchedulerConfig {
 		public void run() {
 			int i=0;
 			for(URI u : scheduler.getUris()) {
+				if(scheduler.state==SchedulerConfig.State.SHUTDOWN)
+					break;
 				fetchAndWrite(u,++i);
 			}
 		}
 
 		private void fetchAndWrite(URI uri, int index) {
-			logger.info("running scheduled service for scheduler {}", scheduler.getName());
-			CloseableHttpClient httpclient = HttpClients.createDefault();
+			logger.info("FETCH START: URI {} in scheduler {}", uri, scheduler.getName());
 			HttpGet httpGet = new HttpGet(uri);
 			CloseableHttpResponse closeableResponse = null;			
-			
+			FileChannel writeChannel=null;
+			ReadableByteChannel readChannel=null;
+			HttpEntity httpEntity =null;
+			buffer.clear();
 			try {
 				closeableResponse=httpclient.execute(httpGet);
-			    HttpEntity httpEntity = closeableResponse.getEntity();
-			    ReadableByteChannel readChannel=Channels.newChannel(httpEntity.getContent());
-			    ByteBuffer buffer=ByteBuffer.allocateDirect(1024*512); // 512K
-			    
+			    httpEntity = closeableResponse.getEntity();
+			    //logger.info("isChunked {}, isRepetable {}, isStreaming {}", httpEntity.isChunked(), httpEntity.isRepeatable(), httpEntity.isStreaming());
+			    readChannel=Channels.newChannel(httpEntity.getContent());			    			    
 			    int read=readChannel.read(buffer);
-			    FileChannel writeChannel=FileChannel.open(Paths.get(config.get(CacheManager.CACHE_DIR), scheduler.getName()+"."+index+".html"), StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+			    writeChannel=FileChannel.open(Paths.get(config.get(CacheManager.CACHE_DIR), scheduler.getName()+"."+index+".html"), StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+			    long totalBytesRead=read;
 			    while(read!=-1) {
 				    buffer.flip();
 				    writeChannel.write(buffer);
 				    buffer.clear();
 				    read=readChannel.read(buffer);
+				    totalBytesRead+=read;
 			    }
-			    writeChannel.close();
-			    readChannel.close();
-			    EntityUtils.consume(httpEntity);
+			    writeChannel.truncate(totalBytesRead+1);			    
+			    logger.info("FETCH END: URI {} in scheduler {}", uri, scheduler.getName());
 			} catch (Exception e) {
-				logger.error("An exception occured while fetching content",e);
+				if(!(e instanceof ClosedByInterruptException))
+				logger.error("An exception occured while fetching content", e);
 			} finally {
 			    try {
 			    	if(closeableResponse!=null)
 			    		closeableResponse.close();
+				    writeChannel.close();
+				    readChannel.close();
+				    EntityUtils.consume(httpEntity);
 				} catch (IOException e) {
 					logger.error("An exeception occured while closing response",e);
 				}
@@ -136,13 +153,19 @@ public class SchedulerConfig {
 	public void activate(Map<String,String> config) {
 		checkIfAlreadyActive();
 		this.config=config;
-		this.activated=true;
+		this.state=State.ACTIVE;
 		
 		executor=Executors.newScheduledThreadPool(1);
 		executor.scheduleAtFixedRate(new HTTPResource(this), 0, getInterval(), TimeUnit.MINUTES);
 	}
 	
 	private void checkIfAlreadyActive() {
-		if(this.activated) throw new IllegalStateException("Scheduler is in active state...");
+		if(this.state==State.ACTIVE) throw new IllegalStateException("Scheduler is in active state...");
+	}
+	
+	public void shutdown() {
+		logger.info("Shutdown request received for scheduler: {}", getName());
+		this.state=State.SHUTDOWN;
+		executor.shutdownNow();
 	}
 }
