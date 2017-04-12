@@ -12,8 +12,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpEntity;
@@ -156,7 +158,12 @@ public class SchedulerConfig {
 		this.state=State.ACTIVE;
 		
 		executor=Executors.newScheduledThreadPool(1);
-		executor.scheduleAtFixedRate(new HTTPResource(this), 0, getInterval(), TimeUnit.MINUTES);
+		ScheduledFuture<?> future=executor.scheduleAtFixedRate(new HTTPResource(this), 0, getInterval(), TimeUnit.MINUTES);
+		// the following will keep it running indefinitely
+		try {
+			future.get();
+		} catch (Throwable e) {
+		}
 	}
 	
 	private void checkIfAlreadyActive() {
