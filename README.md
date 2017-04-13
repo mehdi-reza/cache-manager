@@ -1,4 +1,5 @@
-"# cache-manager" 
+# cache-manager
+
 It helps in fetching pre-defined URLs with multiple schedulers to keep fetching from the upstream server with fixed intervals.
 
 Schedulers can be defined as following:
