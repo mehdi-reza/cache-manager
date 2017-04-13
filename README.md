@@ -15,7 +15,7 @@ scheduler.1.url=http://localhost:8780/konakart/SelectHomeCat.action?catId=3&skip
 The above scheduler will fetch every 1 minute the defined URLs in order. The output from upstream server will be stored in the provided cache dir "/etc/static/cache" which can be pulled by NGINX using ssi.
 
 
-mvn clean package exec:java -Dexec.mainClass=pk.mars.cache.manager.CacheManager
+> mvn clean package exec:java -Dexec.mainClass=pk.mars.cache.manager.CacheManager
 
 
 
